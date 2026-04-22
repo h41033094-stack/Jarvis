@@ -1,0 +1,14 @@
+{
+  "name": "J.A.R.V.I.S. Core",
+  "description": "An immersive, AI-powered intelligent assistant inspired by Iron Man, featuring voice control, smart home simulations, and learning capabilities.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "voice_interface",
+    "ai_vision",
+    "smart_home_control"
+  ]
+}

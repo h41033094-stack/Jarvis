@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "J.A.R.V.I.S. Neural Bridge",
+  "version": "1.0.0",
+  "description": "Tactical uplink between J.A.R.V.I.S. OS and the host browser DOM.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
