@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, ExternalLink, MousePointer2, Keyboard, CheckCircle2, X } from 'lucide-react';
+import { Globe, ExternalLink, MousePointer2, Keyboard, CheckCircle2, X, AlertCircle, Plus } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export interface WebTask {
@@ -16,11 +16,84 @@ export const BrowserControlModule: React.FC<{
   tasks: WebTask[];
   onComplete: (id: string) => void;
   onCancel: (id: string) => void;
-}> = ({ tasks, onComplete, onCancel }) => {
-  if (tasks.length === 0) return null;
+  onAddTask: (task: Omit<WebTask, 'id' | 'status'>) => void;
+}> = ({ tasks, onComplete, onCancel, onAddTask }) => {
+  const [manualUrl, setManualUrl] = React.useState('');
+  const [error, setError] = React.useState<string | null>(null);
+
+  const isValidUrl = (url: string) => {
+    try {
+      const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!manualUrl.trim()) {
+      setError("Coordinates required, Sir.");
+      return;
+    }
+
+    if (!isValidUrl(manualUrl)) {
+      setError("Invalid protocol string. URL must be a valid web coordinate.");
+      return;
+    }
+
+    const formattedUrl = manualUrl.startsWith('http') ? manualUrl : `https://${manualUrl}`;
+    
+    onAddTask({
+      url: formattedUrl,
+      action: 'open',
+      description: `Manual Uplink: ${formattedUrl.replace(/^https?:\/\//, '').split('/')[0]}`,
+    });
+    
+    setManualUrl('');
+  };
 
   return (
-    <div className="fixed bottom-32 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 px-4">
+    <div className="fixed bottom-32 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 px-4 flex flex-col gap-3">
+      {/* Manual Input Panel */}
+      <div className="jarvis-panel p-3 border-sky-500/30 bg-slate-900/80 backdrop-blur-2xl">
+        <form onSubmit={handleManualSubmit} className="flex gap-2">
+          <div className="flex-1 relative">
+            <input 
+              type="text"
+              value={manualUrl}
+              onChange={(e) => {
+                setManualUrl(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="Enter URL for deep-packet inspection..."
+              className={cn(
+                "w-full bg-black/40 border rounded-xl px-4 py-2 text-[11px] font-mono outline-none transition-all",
+                error ? "border-rose-500/50 text-rose-200" : "border-sky-500/20 text-sky-100 focus:border-sky-500/50"
+              )}
+            />
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute -top-10 left-0 right-0 bg-rose-500/90 text-white text-[9px] px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg"
+              >
+                <AlertCircle className="w-3 h-3" />
+                {error}
+              </motion.div>
+            )}
+          </div>
+          <button 
+            type="submit"
+            className="p-2 bg-sky-500 hover:bg-sky-400 text-slate-950 rounded-xl transition-all shadow-[0_0_15px_rgba(56,189,248,0.3)]"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        </form>
+      </div>
+
       <AnimatePresence mode="popLayout">
         {tasks.map((task) => (
           <motion.div

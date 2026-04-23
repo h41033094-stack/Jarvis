@@ -324,7 +324,7 @@ export const VisionModule: React.FC<{
           <div className="grid grid-cols-2 gap-3 relative z-10">
             <button
               disabled={isScanning}
-              onClick={captureFrameAndAnalyze}
+              onClick={() => captureFrameAndAnalyze()}
               className="group bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 p-3 rounded-2xl text-[10px] font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 text-sky-400 hover:shadow-[0_0_20px_rgba(56,189,248,0.2)]"
             >
               {isScanning ? (
@@ -336,7 +336,7 @@ export const VisionModule: React.FC<{
             </button>
             <button
               disabled={isScanning}
-              onClick={analyzeScene}
+              onClick={() => analyzeScene()}
               className="group bg-slate-800/40 hover:bg-sky-500/20 border border-sky-400/5 hover:border-sky-500/30 p-3 rounded-2xl text-[10px] font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 text-sky-100/40 hover:text-sky-400"
             >
               <Eye className="w-4 h-4 group-hover:rotate-12 transition-transform" />

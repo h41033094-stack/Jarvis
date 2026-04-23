@@ -54,10 +54,16 @@ export interface SystemState {
   smartHome: SmartDevice[];
   userPreferences: Record<string, any>;
   logs: string[];
+  // Tactical integration
+  telemetryLevel: number; // 0-100
+  satelliteStatus: 'online' | 'limited' | 'offline';
+  powerEfficiency: number; // 0-100
+  activeArmor: string; // e.g., 'MARK_85'
 }
 
 export interface Message {
   role: 'user' | 'model';
   text: string;
   timestamp: number;
+  lang?: string;
 }

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Newspaper, ThumbsUp, ThumbsDown, ExternalLink, RefreshCw, X, Radio, Sparkles } from 'lucide-react';
 import { NewsArticle, NewsPreference } from '../types';
 import { cn } from '../lib/utils';
+import { fetchRealTimeNews } from '../services/geminiService';
 
 interface NewsModuleProps {
   isOpen: boolean;
@@ -12,39 +13,6 @@ interface NewsModuleProps {
   onUpdatePreferences: (newPrefs: NewsPreference) => void;
 }
 
-const MOCK_NEWS: NewsArticle[] = [
-  {
-    id: '1',
-    title: 'Stark Industries Unveils Arc Reactor v5',
-    summary: 'The new clean energy initiative promises 200% efficiency gains for residential cities.',
-    source: 'TechCrunch',
-    url: 'https://techcrunch.com/stark-arc-v5',
-    topic: 'Technology',
-    timestamp: Date.now() - 3600000,
-    sentiment: 'positive'
-  },
-  {
-    id: '2',
-    title: 'Global Space Agency Announces Mars Colony Phase 1',
-    summary: 'Collaborative effort led by major tech leaders to establish a permanent presence by 2030.',
-    source: 'Discovery',
-    url: 'https://discovery.com/mars-colony',
-    topic: 'Space',
-    timestamp: Date.now() - 7200000,
-    sentiment: 'neutral'
-  },
-  {
-    id: '3',
-    title: 'Quantum Computing Reaches Stability Milestone',
-    summary: 'Researchers demonstrate error-correcting qubits capable of running complex simulations.',
-    source: 'Nature',
-    url: 'https://nature.com/quantum-stability',
-    topic: 'Science',
-    timestamp: Date.now() - 10800000,
-    sentiment: 'positive'
-  }
-];
-
 export const NewsModule: React.FC<NewsModuleProps> = ({ 
   isOpen, 
   onClose, 
@@ -52,8 +20,14 @@ export const NewsModule: React.FC<NewsModuleProps> = ({
   preferences, 
   onUpdatePreferences 
 }) => {
-  const [articles, setArticles] = useState<NewsArticle[]>(MOCK_NEWS);
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && articles.length === 0) {
+      refreshFeed();
+    }
+  }, [isOpen]);
 
   const handleFeedback = (id: string, liked: boolean) => {
     const article = articles.find(a => a.id === id);
@@ -73,14 +47,19 @@ export const NewsModule: React.FC<NewsModuleProps> = ({
     setArticles(prev => prev.filter(a => a.id !== id));
   };
 
-  const refreshFeed = () => {
+  const refreshFeed = async () => {
     setIsRefreshing(true);
-    onLog("RECALIBRATING_NEWS_UPLINK: ANALYZING_PREFERENCES");
+    onLog("RECALIBRATING_NEWS_UPLINK: FETCHING_REAL_TIME_INTEL");
     
-    setTimeout(() => {
+    try {
+      const liveArticles = await fetchRealTimeNews(preferences.topics.length > 0 ? preferences.topics : ["Technology", "Science", "World News"]);
+      setArticles(liveArticles);
+      onLog("NEWS_FEED_SYNCHRONIZED: LIVE_DATA_ACQUIRED");
+    } catch (error) {
+      onLog("UPLINK_ERROR: FALLING_BACK_TO_CACHED_INTEL");
+    } finally {
       setIsRefreshing(false);
-      onLog("NEWS_FEED_SYNCHRONIZED");
-    }, 2000);
+    }
   };
 
   return (

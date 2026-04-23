@@ -16,8 +16,11 @@ import { StartupSequenceOnboarding } from './components/StartupSequence';
 import { NewsModule } from './components/NewsModule';
 import { ExtensionBridgeModule } from './components/ExtensionBridgeModule';
 import { SettingsPanel } from './components/SettingsPanel';
+import { HudDecorations } from './components/HudDecorations';
 import { LockOverlay } from './components/LockOverlay';
-import { jarvisChat } from './services/geminiService';
+import { HolographicDesignModule, SceneElement } from './components/HolographicDesignModule';
+import { jarvisChat, fetchRealTimeWeather } from './services/geminiService';
+import { desktopBridge } from './services/desktopBridge';
 import { Message, SmartDevice, SystemState, NewsPreference, Personality } from './types';
 import { JARVIS_SYSTEM_PROMPT, INITIAL_SMART_HOME } from './constants';
 import { cn } from './lib/utils';
@@ -30,6 +33,60 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [devices, setDevices] = useState<SmartDevice[]>(INITIAL_SMART_HOME);
+  const [localApps, setLocalApps] = useState<{name: string, path: string}[]>([]);
+
+  // Sync "Devices" with real browser capabilities
+  useEffect(() => {
+    const syncHardware = async () => {
+      const newDevices = [...INITIAL_SMART_HOME];
+      
+      // Sync Primary Display
+      const displayIdx = newDevices.findIndex(d => d.id === 'l1');
+      if (displayIdx > -1) {
+        newDevices[displayIdx].name = `UHD Display (${window.screen.width}x${window.screen.height})`;
+        newDevices[displayIdx].value = `${window.devicePixelRatio}x Scaling`;
+      }
+
+      // Sync Audio
+      const audioIdx = newDevices.findIndex(d => d.id === 'a1');
+      if (audioIdx > -1) {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const hasAudio = devices.some(d => d.kind === 'audiooutput');
+          newDevices[audioIdx].status = hasAudio ? 'on' : 'off';
+          newDevices[audioIdx].name = 'Master Audio Array';
+        } catch (e) {
+          console.warn("Audio enumeration blocked.");
+        }
+      }
+
+      // Sync Biometrics (Camera)
+      const camIdx = newDevices.findIndex(d => d.id === 'c1');
+      if (camIdx > -1) {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const hasCam = devices.some(d => d.kind === 'videoinput');
+          newDevices[camIdx].status = hasCam ? 'on' : 'off';
+          newDevices[camIdx].name = 'Retina Scanner (Webcam)';
+        } catch (e) {
+          console.warn("Camera enumeration blocked.");
+        }
+      }
+
+      setDevices(newDevices);
+    };
+
+    syncHardware();
+
+    // Initial App Sync for Desktop Mode
+    if (desktopBridge.isSupported) {
+      desktopBridge.syncApps().then(apps => {
+        setLocalApps(apps);
+        onLog(`INITIAL_SOFTWARE_SYNC: ${apps.length} NODES_IDENTIFIED`);
+      });
+    }
+  }, []);
+
   const [logs, setLogs] = useState<string[]>(['CORE_INIT_COMPLETE', 'SUBSYSTEMS_NOMINAL']);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isVaultOpen, setIsVaultOpen] = useState(false);
@@ -40,6 +97,9 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isVisionHUDOpen, setIsVisionHUDOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [isHologramOpen, setIsHologramOpen] = useState(false);
+  const [hologramElements, setHologramElements] = useState<SceneElement[]>([]);
+  const [hologramTitle, setHologramTitle] = useState("MARK_85_SCHEMATIC");
   const [webTasks, setWebTasks] = useState<WebTask[]>([]);
   const [scriptingInitialState, setScriptingInitialState] = useState<{ code?: string, filename?: string }>({});
   const [isOwnerVerified, setIsOwnerVerified] = useState(false);
@@ -64,8 +124,37 @@ export default function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [location, setLocation] = useState<{ lat: number; long: number; timezone: string; weather?: string } | null>(null);
   
+  // Tactical States
+  const [telemetryLevel, setTelemetryLevel] = useState(98.45);
+  const [satelliteStatus, setSatelliteStatus] = useState<'online' | 'limited' | 'offline'>('online');
+  const [powerEfficiency, setPowerEfficiency] = useState(85.22);
+  const [activeArmor, setActiveArmor] = useState('MARK_85');
+  
+  // Real-time Telemetry Stimulation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTelemetryLevel(prev => {
+        const jitter = (Math.random() - 0.5) * 0.1;
+        return Math.max(90, Math.min(100, prev + jitter));
+      });
+      setPowerEfficiency(prev => {
+        const jitter = (Math.random() - 0.5) * 0.2;
+        return Math.max(80, Math.min(99, prev + jitter));
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTelemetryLevel(prev => Math.min(100, Math.max(90, prev + (Math.random() - 0.5))));
+      setPowerEfficiency(prev => Math.min(100, Math.max(70, prev + (Math.random() - 0.5))));
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Neural Bridge Feedback Listener
   useEffect(() => {
@@ -92,21 +181,28 @@ export default function App() {
 
   // Fetch Geolocation
   useEffect(() => {
-    if ("geolocation" in navigator) {
+    if (!isInitializing && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition((position) => {
-        setLocation({
+        const coords = {
           lat: position.coords.latitude,
           long: position.coords.longitude,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          weather: Math.random() > 0.3 ? "Clear Skies" : "Slight Precipitation"
-        });
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+        setLocation(coords);
         addLog("GEOLOCATION_ACQUIRED");
+        
+        // Fetch real-time weather
+        onLog("FETCHING_ATMOSPHERIC_DATA: SYNCHRONIZING_METEOROLOGY");
+        fetchRealTimeWeather(coords.lat, coords.long).then(weather => {
+          setLocation(prev => prev ? { ...prev, weather } : null);
+          onLog(`METEOROLOGY_SYNCED: ${weather.toUpperCase()}`);
+        });
       }, (error) => {
         console.error("Location error:", error);
         addLog("GEOLOCATION_FAULT: PERMISSION_DENIED");
       });
     }
-  }, []);
+  }, [isInitializing]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -164,6 +260,25 @@ export default function App() {
     };
   }, []);
 
+  const addWebTask = (task: Omit<WebTask, 'id' | 'status'>) => {
+    const newTask: WebTask = {
+      ...task,
+      id: Math.random().toString(36).substr(2, 9),
+      status: 'pending',
+    };
+    setWebTasks(prev => [...prev, newTask]);
+    addLog(`WEB_TASK_QUEUED: ${task.url}`);
+  };
+
+  const isValidUrl = (url: string) => {
+    try {
+      const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
   const handleSend = async (overrideText?: string) => {
     const text = overrideText || input;
     if (!text.trim() || isProcessing) return;
@@ -218,11 +333,18 @@ export default function App() {
       addLog("INITIATING_OPTICAL_INTERFACE_MATRIX");
     }
 
+    if (text.toLowerCase().includes('design') || text.toLowerCase().includes('3d') || text.toLowerCase().includes('model') || text.toLowerCase().includes('schematic')) {
+      addLog("INITIATING_SPATIAL_DESIGN_PROTOCOL");
+    }
+
     // Augmented System Instruction with Geolocation and Time context
     const currentTime = new Date().toLocaleString('en-US', { timeZoneName: 'short' });
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     
     let envCtx = `\n[ENVIRONMENT_STAMP]\nSystem Time: ${currentTime}\nTimezone: ${timezone}\n`;
+    
+    // Tactical Context
+    envCtx += `\n[TACTICAL_TELEMETRY]\nActive Armor: ${activeArmor}\nTelemetry Integrity: ${telemetryLevel}%\nSatellite Network: ${satelliteStatus}\nPower Management Efficiency: ${powerEfficiency}%\n`;
     
     if (location) {
       envCtx += `Position: ${location.lat}, ${location.long}\n`;
@@ -253,16 +375,19 @@ export default function App() {
     if (webCmdMatch && webCmdMatch[1]) {
       try {
         const cmd = JSON.parse(webCmdMatch[1]);
-        const newTask: WebTask = {
-          id: Math.random().toString(36).substr(2, 9),
-          url: cmd.url || 'https://google.com',
-          action: cmd.action || 'open',
-          status: 'pending',
-          description: cmd.desc || 'System-Initiated Web Task',
-          payload: cmd.data || null,
-        };
-        setWebTasks(prev => [...prev, newTask]);
-        addLog(`WEB_COMMAND_INTERCEPTED: ${newTask.action.toUpperCase()}`);
+        const url = cmd.url || 'https://google.com';
+        
+        if (isValidUrl(url)) {
+          addWebTask({
+            url: url,
+            action: cmd.action || 'open',
+            description: cmd.desc || 'System-Initiated Web Task',
+            payload: cmd.data || null,
+          });
+          addLog(`WEB_COMMAND_INTERCEPTED: ${cmd.action?.toUpperCase() || 'OPEN'}`);
+        } else {
+          addLog("WEB_COMMAND_REJECTED: INVALID_URL_PROTOCOL");
+        }
         cleanedResponse = cleanedResponse.replace(/\[WEB_CMD:\s*{[^\]]+}\]/gi, '').trim();
       } catch (e) {
         console.error("Web CMD parse error:", e);
@@ -273,15 +398,16 @@ export default function App() {
     const urlMatch = responseText.match(/\[OPEN_URL:\s*(https?:\/\/[^\s\]]+)\]/i);
     if (urlMatch && urlMatch[1]) {
       const url = urlMatch[1];
-      const newTask: WebTask = {
-        id: Math.random().toString(36).substr(2, 9),
-        url: url,
-        action: 'open',
-        status: 'pending',
-        description: `Open Remote Site: ${url.replace(/^https?:\/\//, '').split('/')[0]}`,
-      };
-      setWebTasks(prev => [...prev, newTask]);
-      addLog(`EXTERNAL_UPLINK_SEQUENCED: ${url}`);
+      if (isValidUrl(url)) {
+        addWebTask({
+          url: url,
+          action: 'open',
+          description: `Open Remote Site: ${url.replace(/^https?:\/\//, '').split('/')[0]}`,
+        });
+        addLog(`EXTERNAL_UPLINK_SEQUENCED: ${url}`);
+      } else {
+        addLog("EXTERNAL_UPLINK_ABORTED: MALFORMED_COORDINATES");
+      }
       cleanedResponse = cleanedResponse.replace(/\[OPEN_URL:\s*https?:\/\/[^\s\]]+\]/gi, '').trim();
     }
 
@@ -315,48 +441,71 @@ export default function App() {
       }
     }
 
+    // Handle 3D_DESIGN tag
+    const designMatch = responseText.match(/\[3D_DESIGN:\s*({[^\]]+})\]/i);
+    if (designMatch && designMatch[1]) {
+      try {
+        const cmd = JSON.parse(designMatch[1]);
+        setHologramElements(cmd.elements || []);
+        setHologramTitle(cmd.title || "NEURAL_FABRICATION_SCHEMATIC");
+        setIsHologramOpen(true);
+        addLog(`HOLOGRAPHIC_PROJECTION_ENGAGED: ${cmd.title || 'UNKNOWN_DESIGN'}`);
+        cleanedResponse = cleanedResponse.replace(/\[3D_DESIGN:\s*{[^\]]+}\]/gi, '').trim();
+      } catch (e) {
+        console.error("3D Design parse error:", e);
+      }
+    }
+
+    // Handle SYNC_APPS tag
+    if (responseText.includes('[SYNC_APPS]')) {
+      addLog("INITIATING_SOFTWARE_SYNC_PROTOCOL");
+      desktopBridge.syncApps().then(apps => {
+        setLocalApps(apps);
+        onLog(`SOFTWARE_LATTICE_SYNCED: ${apps.length} NODES_IDENTIFIED`);
+      });
+      cleanedResponse = cleanedResponse.replace(/\[SYNC_APPS\]/gi, '').trim();
+    }
+
+    // Handle OPEN_APP tag
+    const openAppMatch = responseText.match(/\[OPEN_APP:\s*([^\]]+)\]/i);
+    if (openAppMatch && openAppMatch[1]) {
+      const targetApp = openAppMatch[1].trim();
+      
+      // Attempt to find app by name in localApps if not a direct path
+      const appRef = localApps.find(a => a.name.toLowerCase().includes(targetApp.toLowerCase()));
+      const appPath = appRef ? appRef.path : targetApp;
+      
+      desktopBridge.openApp(appPath).then(res => {
+        if (res.status === 'success') {
+          onLog(`SOFTWARE_EXECUTED: ${targetApp.toUpperCase()}`);
+        } else {
+          onLog(`EXECUTION_FAULT: UNABLE_TO_LOCATE_${targetApp.toUpperCase()}`);
+        }
+      });
+      cleanedResponse = cleanedResponse.replace(/\[OPEN_APP:\s*[^\]]+\]/gi, '').trim();
+    }
+
+    // Handle LOCK_SYSTEM tag
+    if (responseText.includes('[LOCK_SYSTEM]')) {
+      addLog("ENGAGING_SYSTEM_WIDE_SECURITY_LOCKDOWN");
+      desktopBridge.lockSystem();
+      setIsLocked(true);
+      cleanedResponse = cleanedResponse.replace(/\[LOCK_SYSTEM\]/gi, '').trim();
+    }
+
     // Simulate real-time interaction
-    const botMessage: Message = { role: 'model', text: cleanedResponse, timestamp: Date.now() };
+    const botMessage: Message = { role: 'model', text: cleanedResponse, timestamp: Date.now(), lang: detectedLang };
     setMessages(prev => [...prev, botMessage]);
     setIsProcessing(false);
     addLog("OS_RESPONSE_READY");
 
-    // "Speak" the response
-    const utterance = new SpeechSynthesisUtterance(cleanedResponse);
-    utterance.lang = detectedLang;
-    utterance.rate = personality.speed;
-    utterance.pitch = personality.pitch;
-    
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      if (isVoiceMode) {
-        setTimeout(startVoiceCapture, 500);
-      }
-    };
-    utterance.onerror = () => setIsSpeaking(false);
-    
-    if (detectedLang.startsWith('en')) {
-      if (personality.voice) {
-        const selectedVoice = availableVoices.find(v => v.name === personality.voice);
-        if (selectedVoice) utterance.voice = selectedVoice;
-      } else {
-        const voices = window.speechSynthesis.getVoices();
-        const jarvisVoice = voices.find(v => v.lang.includes('en-GB') || v.name.includes('Daniel') || v.name.includes('Google UK English Male'));
-        if (jarvisVoice) utterance.voice = jarvisVoice;
-      }
-    } else {
-      // Try to find a voice matching the detected language
-      const langVoice = availableVoices.find(v => v.lang.startsWith(detectedLang));
-      if (langVoice) utterance.voice = langVoice;
-    }
-
-    window.speechSynthesis.speak(utterance);
+    // Autonomic vocalization is now handled by useEffect monitoring the messages array
   };
 
   const handleSecurityAction = (action: 'lock' | 'unlock' | 'enroll', data?: any) => {
     if (action === 'lock') {
       setIsLocked(true);
+      desktopBridge.lockSystem(); // Lock the actual desktop
       addLog("UNAUTHORIZED_ACCESS_DETECTED: LOCKDOWN_ENGAGED");
     } else if (action === 'unlock') {
       setIsLocked(false);
@@ -375,6 +524,47 @@ export default function App() {
     ));
     const device = devices.find(d => d.id === id);
     addLog(`TOGGLE_STATE: ${device?.name.toUpperCase()} => ${device?.status === 'on' ? 'OFF' : 'ON'}`);
+  };
+
+  const speak = (text: string, lang: string = 'en-GB') => {
+    if (!text) return;
+    
+    // Stop any current speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.rate = personality.speed;
+    utterance.pitch = personality.pitch;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      if (isVoiceMode) {
+        setTimeout(startVoiceCapture, 400);
+      }
+    };
+    utterance.onerror = (e) => {
+      console.error("Speech error", e);
+      setIsSpeaking(false);
+    };
+
+    // Voice Selection Logic
+    if (lang.startsWith('en')) {
+      const preferred = personality.voice;
+      const voices = window.speechSynthesis.getVoices();
+      const selectedVoice = preferred 
+        ? voices.find(v => v.name === preferred)
+        : voices.find(v => v.lang.includes('en-GB') || v.name.includes('Daniel') || v.name.includes('Google UK English Male'));
+      
+      if (selectedVoice) utterance.voice = selectedVoice;
+    } else {
+      const langVoice = availableVoices.find(v => v.lang.startsWith(lang));
+      if (langVoice) utterance.voice = langVoice;
+    }
+
+    addLog(`VOCALIZING: "${text.substring(0, 20)}..."`);
+    window.speechSynthesis.speak(utterance);
   };
 
   const startVoiceCapture = () => {
@@ -425,6 +615,39 @@ export default function App() {
     }
   };
 
+  // Autonomic Vocalization Trigger
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === 'model') {
+      speak(lastMessage.text, lastMessage.lang || 'en-GB');
+    }
+  }, [messages.length]);
+
+  const toggleVoiceMode = () => {
+    // Interrupt if speaking
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      addLog("VOCAL_INTERRUPT_TRIGGERED: RE-ENGAGING_INPUT_LATTICE");
+      if (isVoiceMode) {
+        setTimeout(startVoiceCapture, 300);
+      }
+      return;
+    }
+
+    if (!isVoiceMode) {
+      setIsVoiceMode(true);
+      // Brief delay to ensure state update before sensor activation
+      setTimeout(startVoiceCapture, 300);
+    } else {
+      setIsVoiceMode(false);
+      window.speechSynthesis.cancel();
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    }
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden mesh-bg font-sans text-sky-50">
       <AnimatePresence>
@@ -436,8 +659,14 @@ export default function App() {
       <div className="absolute inset-0 bg-slate-950/20 pointer-events-none z-[100] hologram-flicker" />
 
       {/* Background HUD Layer */}
+      <HudDecorations 
+        telemetryLevel={telemetryLevel}
+        satelliteStatus={satelliteStatus}
+        powerEfficiency={powerEfficiency}
+        activeArmor={activeArmor}
+      />
       <Particles />
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-10">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#38bdf8_1px,transparent_1px),linear-gradient(to_bottom,#38bdf8_1px,transparent_1px)] bg-[size:40px_40px]" />
       </div>
 
@@ -455,7 +684,12 @@ export default function App() {
         isExpandedOverride={isVisionHUDOpen}
       />
       
-      <SystemDashboard />
+      <SystemDashboard 
+        telemetryLevel={telemetryLevel}
+        powerEfficiency={powerEfficiency}
+        satelliteStatus={satelliteStatus}
+        activeArmor={activeArmor}
+      />
 
       <AnalyticsPanel 
         isOpen={isAnalyticsOpen} 
@@ -497,11 +731,27 @@ export default function App() {
         personality={personality}
         onUpdatePersonality={setPersonality}
         availableVoices={availableVoices}
+        telemetryLevel={telemetryLevel}
+        setTelemetryLevel={setTelemetryLevel}
+        satelliteStatus={satelliteStatus}
+        setSatelliteStatus={setSatelliteStatus}
+        powerEfficiency={powerEfficiency}
+        setPowerEfficiency={setPowerEfficiency}
+        activeArmor={activeArmor}
+        setActiveArmor={setActiveArmor}
       />
 
       <LockOverlay 
         isLocked={isLocked}
         onUnlock={() => setIsLocked(false)}
+        onLog={onLog}
+      />
+
+      <HolographicDesignModule 
+        isOpen={isHologramOpen}
+        onClose={() => setIsHologramOpen(false)}
+        elements={hologramElements}
+        deviceName={hologramTitle}
         onLog={onLog}
       />
 
@@ -512,7 +762,19 @@ export default function App() {
       <div className="absolute bottom-0 right-0 w-32 h-32 border-b-2 border-r-2 border-sky-500/20 m-4 pointer-events-none" />
 
       {/* Main Interface */}
-      <main className="relative z-10 w-full h-full flex flex-col items-center justify-between p-8 pl-80">
+      <main className="relative z-10 w-full h-full flex flex-col items-center justify-between p-8">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
+          <JarvisOrb 
+            isListening={isListening} 
+            isActive={isVoiceMode} 
+            isProcessing={isProcessing}
+            onClick={toggleVoiceMode}
+          />
+          <div className="mt-8">
+            <VoiceVisualization isSpeaking={isSpeaking} />
+          </div>
+        </div>
+
         {/* Top Indicators */}
         <header className="w-full flex justify-between items-center mb-6 h-20">
           <motion.div 
@@ -568,19 +830,9 @@ export default function App() {
           </div>
         </header>
 
-        {/* Central Orb & Interaction */}
-        <div className="flex-1 w-full flex flex-col items-center justify-center gap-12">
-          <JarvisOrb 
-            isListening={isListening} 
-            isActive={isVoiceMode} 
-            isProcessing={isProcessing}
-          />
-
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-24">
-            <VoiceVisualization isSpeaking={isSpeaking} />
-          </div>
-          
-          <div className="max-w-2xl w-full flex flex-col items-center gap-6 mt-16">
+        {/* Main Interaction Area */}
+        <div className="flex-1 w-full flex flex-col items-center justify-center gap-12 mt-20">
+          <div className="max-w-2xl w-full flex flex-col items-center gap-6">
             <AnimatePresence mode="wait">
               {isVoiceMode ? (
                 <motion.div 
@@ -648,6 +900,7 @@ export default function App() {
           tasks={webTasks} 
           onComplete={(id) => setWebTasks(prev => prev.filter(t => t.id !== id))}
           onCancel={(id) => setWebTasks(prev => prev.filter(t => t.id !== id))}
+          onAddTask={addWebTask}
         />}
         
         <ExtensionBridgeModule 

@@ -93,3 +93,40 @@ export async function analyzeVision(base64Image: string) {
     return "Visual sensor malfunction, Sir.";
   }
 }
+
+export async function fetchRealTimeNews(preferences: string[]) {
+  try {
+    const prompt = `Fetch the latest high-tech, science, and global news based on these topics: ${preferences.join(", ")}. Return a JSON array of 3 NewsArticle objects with fields: id, title, summary, source, url, topic, timestamp (number), and sentiment. Return ONLY the JSON.`;
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        systemInstruction: JARVIS_SYSTEM_PROMPT,
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json"
+      }
+    });
+    return JSON.parse(response.text || "[]");
+  } catch (error) {
+    console.error("News Fetch Error:", error);
+    return [];
+  }
+}
+
+export async function fetchRealTimeWeather(lat: number, lon: number) {
+  try {
+    const prompt = `What is the current exact weather at coordinates ${lat}, ${lon}? Provide a short summary like "Clear Skies, 72°F".`;
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        systemInstruction: JARVIS_SYSTEM_PROMPT,
+        tools: [{ googleSearch: {} }]
+      }
+    });
+    return response.text || "Status Unknown";
+  } catch (error) {
+    console.error("Weather Fetch Error:", error);
+    return "Sensor Malfunction";
+  }
+}

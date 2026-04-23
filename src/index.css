@@ -7,20 +7,69 @@
 }
 
 :root {
-  --bg-dark: #030712;
-  --text-sky: #e0f2fe;
-  --sky-accent: #38bdf8;
-  --glass-bg: rgba(15, 23, 42, 0.6);
-  --glass-border: rgba(56, 189, 248, 0.2);
-  --glow-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+  --bg-dark: #000810;
+  --text-sky: #00f2ff;
+  --sky-accent: #00d8ff;
+  --glass-bg: rgba(0, 15, 25, 0.4);
+  --glass-border: rgba(0, 242, 255, 0.2);
+  --glow-shadow: 0 0 15px rgba(0, 242, 255, 0.6);
 }
 
 @layer base {
   body {
-    @apply bg-slate-950 text-sky-100 font-sans antialiased;
+    @apply bg-black text-cyan-400 font-mono antialiased;
     background-color: var(--bg-dark);
+    background-image: 
+      radial-gradient(circle at 50% 50%, rgba(0, 242, 255, 0.05) 0%, transparent 70%),
+      linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+      linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    background-size: 100% 100%, 100% 4px, 3px 100%;
     overflow: hidden;
   }
+}
+
+@layer components {
+  .hud-line {
+    @apply border-cyan-500/30;
+    filter: drop-shadow(0 0 2px rgba(0, 242, 255, 0.4));
+  }
+
+  .hud-text {
+    @apply font-mono text-cyan-400 uppercase tracking-widest;
+    text-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
+  }
+
+  .hud-glitch-text {
+    animation: textFlicker 4s infinite;
+  }
+}
+
+@keyframes textFlicker {
+  0% { opacity: 1; }
+  2% { opacity: 0.1; }
+  4% { opacity: 1; }
+  19% { opacity: 1; }
+  20% { opacity: 0.5; }
+  21% { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse-slow {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+.animate-spin-reverse-slow {
+  animation: spin-reverse-slow 25s linear infinite;
 }
 
 @layer components {
