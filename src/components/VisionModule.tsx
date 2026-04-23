@@ -55,7 +55,7 @@ export const VisionModule: React.FC<{
       if (!isScanning && !isEnrolling) {
         captureFrameAndAnalyze(true);
       }
-    }, 20000); // Scan every 20 seconds
+    }, 20000); 
   };
 
   const startCamera = async () => {
@@ -107,7 +107,7 @@ export const VisionModule: React.FC<{
         setIdentifiedPerson("Unknown Biomass");
         onLog("SECURITY_ALERT: UNRECOGNIZED_USER_DETECTED");
         onSecurityAction('lock');
-        setIsSentinelActive(false); // Stop sentinel after locking to prevent loops
+        setIsSentinelActive(false);
       }
     } catch (error) {
       onLog("VISION_CORE_ERROR: VERIFICATION_FAILED");
@@ -154,74 +154,44 @@ export const VisionModule: React.FC<{
 
   return (
     <div className={cn(
-      "fixed z-50 transition-all duration-500",
-      isExpanded 
-        ? "inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-xl p-8" 
-        : "right-4 top-4 w-64"
+      "w-full h-full relative transition-all duration-500",
+      isExpanded && "fixed inset-0 z-[500] bg-slate-950/90 backdrop-blur-3xl p-8 flex items-center justify-center pointer-events-auto"
     )}>
       <motion.div 
         layout
         className={cn(
-          "jarvis-panel border-r-4 border-sky-500 bg-slate-900/40 backdrop-blur-md relative overflow-hidden group shadow-2xl",
-          isExpanded ? "w-full max-w-4xl p-6 rounded-[2.5rem]" : "p-3"
+          "w-full h-full flex flex-col relative",
+          isExpanded ? "max-w-5xl rounded-[2.5rem] border border-sky-400/20 bg-slate-900/40 p-8" : ""
         )}
       >
-        <div className="absolute inset-0 bg-sky-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-        
-        <div className="flex items-center justify-between mb-4 relative z-10">
-          <h3 className={cn(
-            "font-bold uppercase tracking-widest text-sky-400 flex items-center gap-2 glow-text italic",
-            isExpanded ? "text-lg" : "text-xs"
-          )}>
-            <Camera className={isExpanded ? "w-5 h-5" : "w-3 h-3"} /> 
-            {isExpanded ? "Optical_Interface_Matrix" : "Vision Core"}
+        <div className="flex items-center justify-between mb-2 relative z-10">
+          <h3 className="text-[8px] font-black uppercase tracking-widest text-sky-400 flex items-center gap-2 italic">
+            <Scan className="w-3 h-3" /> {isExpanded ? "Optical_Interface_Matrix" : "VIS_Core"}
           </h3>
-          <div className="flex gap-3 items-center">
-            {isActive && (
-              <button 
-                onClick={() => setIsSentinelActive(!isSentinelActive)}
-                className={cn(
-                  "p-1.5 rounded-lg transition-all",
-                  isSentinelActive ? "bg-rose-500/20 text-rose-400" : "hover:bg-sky-500/20 text-sky-400/60 hover:text-sky-400"
-                )}
-                title={isSentinelActive ? "Sentinel Mode: ACTIVE" : "Engage Sentinel Mode"}
-              >
-                {isSentinelActive ? <ShieldCheck className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
-              </button>
-            )}
+          <div className="flex gap-2 items-center">
             {isActive && (
               <button 
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="p-1.5 hover:bg-sky-500/20 rounded-lg transition-colors text-sky-400/60 hover:text-sky-400"
+                className="p-1 hover:bg-sky-500/20 rounded-md transition-colors text-sky-400/60 hover:text-sky-400"
               >
-                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                {isExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
               </button>
-            )}
-            {!isOwnerVerified && isActive && (
-               <button 
-                onClick={enrollFace}
-                disabled={isEnrolling}
-                className="p-1.5 hover:bg-emerald-500/20 rounded-lg transition-colors text-emerald-400/60 hover:text-emerald-400"
-                title="Enroll Face"
-               >
-                 <UserCheck className={cn("w-4 h-4", isEnrolling && "animate-pulse")} />
-               </button>
             )}
             <button 
               onClick={() => setIsActive(!isActive)}
               className={cn(
-                "px-3 py-1 rounded-lg text-[10px] border transition-all font-black uppercase tracking-tighter shadow-sm",
-                isActive ? "bg-sky-500/20 border-sky-500 text-sky-400" : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500"
+                "px-2 py-0.5 rounded-md text-[8px] border transition-all font-black uppercase tracking-tighter shadow-sm",
+                isActive ? "bg-sky-500/20 border-sky-500 text-sky-400" : "bg-slate-800 border-slate-700 text-slate-400"
               )}
             >
-              {isActive ? "Sensors_Active" : "Sensors_Offline"}
+              {isActive ? "Sens" : "Sens_Off"}
             </button>
           </div>
         </div>
 
         <div className={cn(
-          "relative bg-black rounded-[1.5rem] overflow-hidden border border-sky-500/20 mb-4 shadow-[0_0_50px_rgba(56,189,248,0.1)]",
-          isExpanded ? "aspect-video h-[60vh]" : "aspect-video"
+          "relative bg-black rounded-lg overflow-hidden border border-sky-500/10 mb-2",
+          isExpanded ? "flex-1 mb-8" : "aspect-video"
         )}>
           {isActive ? (
             <video 
@@ -230,117 +200,62 @@ export const VisionModule: React.FC<{
               muted 
               playsInline 
               className={cn(
-                "w-full h-full object-cover transition-all contrast-110",
-                isExpanded ? "grayscale-0" : "grayscale brightness-110 contrast-125"
+                "w-full h-full object-cover transition-all contrast-110 grayscale hover:grayscale-0",
+                isExpanded ? "grayscale-0" : ""
               )} 
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-4 opacity-50">
-              <div className="relative">
-                 <ShieldAlert className="w-12 h-12 text-slate-500 animate-pulse" />
-                 <div className="absolute inset-0 animate-ping border border-sky-500/20 rounded-full" />
-              </div>
-              <span className="text-[10px] uppercase font-mono tracking-[0.3em] font-bold">Visual_Sensors_Standby</span>
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2 opacity-50">
+               <ShieldAlert className="w-6 h-6 text-slate-500 animate-pulse" />
+               <span className="text-[7px] uppercase font-mono tracking-[0.3em] font-bold">Scanning...</span>
             </div>
           )}
 
           {isActive && (
-            <>
-              {/* Scan Overlay */}
-              <motion.div
-                animate={{ top: ["0%", "100%", "0%"] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                className="absolute left-0 w-full h-[2px] bg-sky-400/30 shadow-[0_0_20px_#38bdf8] z-10"
-              />
-              
-              <div className="absolute inset-0 border-[40px] border-transparent p-8 pointer-events-none">
-                <div className="w-full h-full border border-sky-400/10 rounded-2xl relative">
-                  {/* Technical Markers */}
-                   <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-sky-400 shadow-[-4px_-4px_10px_rgba(56,189,248,0.2)]" />
-                   <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-sky-400 shadow-[4px_-4px_10px_rgba(56,189,248,0.2)]" />
-                   <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-sky-400 shadow-[-4px_4px_10px_rgba(56,189,248,0.2)]" />
-                   <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-sky-400 shadow-[4px_4px_10px_rgba(56,189,248,0.2)]" />
-                   
-                   {/* Grid Overlay */}
-                   <div className="absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.05)_1px,transparent_1px)] bg-[size:20px_20px]" />
-                </div>
-              </div>
-
-              {isExpanded && (
-                 <div className="absolute top-4 left-4 flex flex-col gap-2">
-                    <div className="glass px-3 py-1 rounded-full flex items-center gap-2 border border-sky-500/20">
-                       <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                       <span className="text-[10px] font-mono text-sky-400 uppercase font-bold tracking-widest">LIVE_FEED_STREAM</span>
-                    </div>
-                    <div className="glass px-3 py-1 rounded-full border border-sky-500/20 text-[8px] font-mono text-sky-100/50 uppercase">
-                       FPS: 60 // RES: 1080P // SENSOR: MK_VII
-                    </div>
-                 </div>
-              )}
-            </>
+            <motion.div
+              animate={{ top: ["0%", "100%", "0%"] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              className="absolute left-0 w-full h-[1px] bg-sky-400/40 shadow-[0_0_10px_#38bdf8] z-10"
+            />
           )}
 
           <AnimatePresence>
             {identifiedPerson && (
               <motion.div 
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className={cn(
-                  "absolute bottom-6 left-6 right-6 glass p-4 rounded-2xl border-l-4 border-emerald-500 shadow-xl backdrop-blur-md",
-                  isExpanded ? "max-w-md" : ""
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <UserCheck className="w-5 h-5 text-emerald-400" /> 
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Identity_Confirmed</span>
-                    <span className="text-sm font-bold text-sky-50 uppercase glow-text tracking-tight italic">{identifiedPerson}</span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {sceneData && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute top-6 right-6 w-80 glass p-5 rounded-3xl border border-sky-500/30 backdrop-blur-xl shadow-2xl"
+                className="absolute bottom-4 left-4 right-4 glass p-4 border-l-4 border-emerald-500 rounded-xl"
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <Eye className="w-4 h-4 text-sky-400" />
-                  <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest italic">Scene_Extraction</span>
+                <div className="flex items-center gap-3">
+                  <UserCheck className="w-4 h-4 text-emerald-400" /> 
+                  <div className="flex flex-col">
+                    <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">ID_CONFIRMED</span>
+                    <span className="text-xs font-bold text-sky-50 uppercase tracking-tight italic">{identifiedPerson}</span>
+                  </div>
                 </div>
-                <p className="text-[11px] font-medium leading-relaxed text-sky-100/80 italic font-mono uppercase tracking-tight">
-                  {sceneData}
-                </p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {isActive && (
-          <div className="grid grid-cols-2 gap-3 relative z-10">
+          <div className="grid grid-cols-2 gap-2 relative z-10">
             <button
               disabled={isScanning}
               onClick={() => captureFrameAndAnalyze()}
-              className="group bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 p-3 rounded-2xl text-[10px] font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 text-sky-400 hover:shadow-[0_0_20px_rgba(56,189,248,0.2)]"
+              className="bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 p-2 rounded-lg text-[8px] font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 text-sky-400"
             >
-              {isScanning ? (
-                <div className="animate-spin w-4 h-4 border-2 border-sky-400 border-t-transparent rounded-full" />
-              ) : (
-                <Scan className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              )}
-              {isExpanded ? "Identify_Subject" : "Verify"}
+              {isScanning ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Scan className="w-3 h-3" />}
+              Verify
             </button>
             <button
               disabled={isScanning}
               onClick={() => analyzeScene()}
-              className="group bg-slate-800/40 hover:bg-sky-500/20 border border-sky-400/5 hover:border-sky-500/30 p-3 rounded-2xl text-[10px] font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 text-sky-100/40 hover:text-sky-400"
+              className="bg-slate-800/40 hover:bg-sky-500/20 border border-sky-400/5 p-2 rounded-lg text-[8px] font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 text-sky-100/40"
             >
-              <Eye className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-              {isExpanded ? "Analyze_Environment" : "Scan"}
+              <Eye className="w-3 h-3" />
+              Scan
             </button>
           </div>
         )}

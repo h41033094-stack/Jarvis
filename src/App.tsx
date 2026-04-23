@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, MicOff, Send, Cpu, LayoutGrid, FileText, Globe, Volume2, Shield, Languages, Search, Code } from 'lucide-react';
-import { SidePanel } from './components/SidePanel';
+import { Mic, MicOff, Send, Cpu, LayoutGrid, FileText, Globe, Volume2, Shield, Languages, Search, Code, Layout, MapPin, Cloud } from 'lucide-react';
 import { VisionModule } from './components/VisionModule';
 import { JarvisOrb } from './components/JarvisOrb';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
@@ -9,15 +8,16 @@ import { SecurityVault } from './components/SecurityVault';
 import { TranslationPanel } from './components/TranslationPanel';
 import { ScriptingModule } from './components/ScriptingModule';
 import { BrowserControlModule, WebTask } from './components/BrowserControlModule';
-import { SystemDashboard } from './components/SystemDashboard';
 import { VoiceVisualization } from './components/VoiceVisualization';
 import { Particles } from './components/Particles';
 import { StartupSequenceOnboarding } from './components/StartupSequence';
 import { NewsModule } from './components/NewsModule';
 import { ExtensionBridgeModule } from './components/ExtensionBridgeModule';
 import { SettingsPanel } from './components/SettingsPanel';
-import { HudDecorations } from './components/HudDecorations';
 import { LockOverlay } from './components/LockOverlay';
+import { UISelector } from './components/UISelector';
+import { AppLattice } from './components/AppLattice';
+import { EdexKeyboard, EdexFileTree, EdexSystemMonitor } from './components/EdexComponents';
 import { HolographicDesignModule, SceneElement } from './components/HolographicDesignModule';
 import { jarvisChat, fetchRealTimeWeather } from './services/geminiService';
 import { desktopBridge } from './services/desktopBridge';
@@ -34,6 +34,9 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [devices, setDevices] = useState<SmartDevice[]>(INITIAL_SMART_HOME);
   const [localApps, setLocalApps] = useState<{name: string, path: string}[]>([]);
+  const [isUISelectorOpen, setIsUISelectorOpen] = useState(false);
+  const [isAppLatticeOpen, setIsAppLatticeOpen] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState<'vanguard' | 'zenith' | 'edex'>('vanguard');
 
   // Sync "Devices" with real browser capabilities
   useEffect(() => {
@@ -95,6 +98,7 @@ export default function App() {
   const [isNewsOpen, setIsNewsOpen] = useState(false);
   const [isExtensionBridgeOpen, setIsExtensionBridgeOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSentinelActive, setIsSentinelActive] = useState(false);
   const [isVisionHUDOpen, setIsVisionHUDOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [isHologramOpen, setIsHologramOpen] = useState(false);
@@ -344,7 +348,7 @@ export default function App() {
     let envCtx = `\n[ENVIRONMENT_STAMP]\nSystem Time: ${currentTime}\nTimezone: ${timezone}\n`;
     
     // Tactical Context
-    envCtx += `\n[TACTICAL_TELEMETRY]\nActive Armor: ${activeArmor}\nTelemetry Integrity: ${telemetryLevel}%\nSatellite Network: ${satelliteStatus}\nPower Management Efficiency: ${powerEfficiency}%\n`;
+    envCtx += `\n[TACTICAL_TELEMETRY]\nActive Armor: ${activeArmor}\nTelemetry Integrity: ${telemetryLevel}%\nSatellite Network: ${satelliteStatus}\nPower Management Efficiency: ${powerEfficiency}%\nSentinel Guard: ${isSentinelActive ? 'ACTIVE' : 'DISENGAGED'}\n`;
     
     if (location) {
       envCtx += `Position: ${location.lat}, ${location.long}\n`;
@@ -518,6 +522,25 @@ export default function App() {
     }
   };
 
+  const handleThemeChange = (theme: 'vanguard' | 'zenith' | 'edex') => {
+    setCurrentTheme(theme);
+    setIsUISelectorOpen(false);
+    addLog(`NEURAL_SKIN_INITIALIZED: ${theme.toUpperCase()}`);
+    
+    // JARVIS verbally acknowledges the new skin
+    let themeDescription = '';
+    if (theme === 'vanguard') themeDescription = 'Vanguard Tactical HUD';
+    else if (theme === 'edex') themeDescription = 'eDEX Cinematic Terminal';
+    else themeDescription = 'Zenith Executive Glass';
+
+    const ack: Message = {
+      role: 'model',
+      text: `Sir, I have initialized the ${themeDescription} interface. Recalibrating sensory arrays for optimal performance.`,
+      timestamp: Date.now()
+    };
+    setMessages(prev => [...prev, ack]);
+  };
+
   const toggleDevice = (id: string) => {
     setDevices(prev => prev.map(d => 
       d.id === id ? { ...d, status: d.status === 'on' ? 'off' : 'on' } : d
@@ -649,46 +672,302 @@ export default function App() {
   };
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden mesh-bg font-sans text-sky-50">
+    <div className="hud-container scanline-overlay bg-[#020406]">
       <AnimatePresence>
         {isInitializing && <StartupSequenceOnboarding onComplete={() => setIsInitializing(false)} />}
       </AnimatePresence>
 
-      {/* Cinematic Overlays */}
-      <div className="scanline" />
-      <div className="absolute inset-0 bg-slate-950/20 pointer-events-none z-[100] hologram-flicker" />
-
-      {/* Background HUD Layer */}
-      <HudDecorations 
-        telemetryLevel={telemetryLevel}
-        satelliteStatus={satelliteStatus}
-        powerEfficiency={powerEfficiency}
-        activeArmor={activeArmor}
-      />
       <Particles />
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-10">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#38bdf8_1px,transparent_1px),linear-gradient(to_bottom,#38bdf8_1px,transparent_1px)] bg-[size:40px_40px]" />
-      </div>
 
-      <SidePanel 
-        devices={devices} 
-        onToggleDevice={toggleDevice} 
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        logs={logs} 
+      {/* COLUMN 1: SYSTEM DIAGNOSTICS & LOGS */}
+      <aside className="hud-panel border-l-0 flex flex-col">
+        <div className="hud-header-label">
+          <span>SYSTEM_LOG_ARRAY</span>
+          <Cpu className="w-3 h-3 opacity-50" />
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar font-mono text-[9px] text-sky-400/60 uppercase">
+          {logs.map((log, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex gap-2"
+            >
+              <span className="opacity-30">[{new Date().toLocaleTimeString()}]</span>
+              <span>{log}</span>
+            </motion.div>
+          ))}
+        </div>
+        
+        <div className="hud-header-label border-t">
+          <span>SOFTWARE_LATTICE</span>
+          <LayoutGrid className="w-3 h-3 opacity-50" />
+        </div>
+        <div className="h-64 p-4">
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { icon: <Layout className="w-4 h-4" />, label: 'UI', onClick: () => setIsUISelectorOpen(true) },
+              { icon: <LayoutGrid className="w-4 h-4" />, label: 'APPS', onClick: () => setIsAppLatticeOpen(true) },
+              { icon: <FileText className="w-4 h-4" />, label: 'ANLZ', onClick: () => setIsAnalyticsOpen(true) },
+              { icon: <Languages className="w-4 h-4" />, label: 'TRNS', onClick: () => setIsTranslationOpen(true) },
+              { icon: <Code className="w-4 h-4" />, label: 'SCRP', onClick: () => setIsScriptingOpen(true) },
+              { icon: <Shield className="w-4 h-4" />, label: 'VLT', onClick: () => setIsVaultOpen(true) },
+              { icon: <Globe className="w-4 h-4" />, label: 'News', onClick: () => setIsNewsOpen(true) },
+              { icon: <Search className="w-4 h-4" />, label: 'Ext', onClick: () => setIsExtensionBridgeOpen(true) },
+            ].map((item, idx) => (
+              <button
+                key={idx}
+                onClick={item.onClick}
+                className="aspect-square flex flex-col items-center justify-center border border-sky-500/10 hover:border-sky-500/40 hover:bg-sky-500/5 transition-all text-sky-400 group"
+              >
+                {item.icon}
+                <span className="text-[7px] font-bold mt-1 opacity-40 group-hover:opacity-100">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </aside>
+
+      {/* COLUMN 2: NEURAL COMMUNICATIONS & CORE */}
+      <main className="flex flex-col relative">
+        <header className="h-16 px-8 flex items-center justify-between border-b border-[var(--panel-border)] bg-sky-500/5">
+          <div className="flex items-center gap-4">
+            <div className="w-3 h-3 bg-sky-500 rounded-full animate-pulse shadow-[0_0_10px_#38bdf8]" />
+            <div className="flex flex-col">
+              <span className="text-[8px] font-mono tracking-widest text-sky-400/40 uppercase">System_Status: Nominal</span>
+              <span className="text-sm font-bold tracking-tighter text-white uppercase italic">J.A.R.V.I.S. Core_v4.2</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-6 font-mono text-[9px] text-sky-400/60 uppercase">
+             <div className="flex flex-col items-end">
+                <span>Telemetry</span>
+                <span className="text-white font-bold">{telemetryLevel.toFixed(2)}%</span>
+             </div>
+             <div className="flex flex-col items-end">
+                <span>Power</span>
+                <span className="text-white font-bold">{powerEfficiency.toFixed(2)}%</span>
+             </div>
+             <div className="flex flex-col items-end">
+                <span>Armor</span>
+                <span className="text-white font-bold">{activeArmor}</span>
+             </div>
+          </div>
+        </header>
+
+        <section className="flex-1 relative flex flex-col items-center justify-center p-12 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(56,189,248,0.03)_0%,transparent_70%)] pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col items-center">
+            <JarvisOrb 
+              isListening={isListening} 
+              isActive={isVoiceMode} 
+              isProcessing={isProcessing}
+              onClick={toggleVoiceMode}
+            />
+            <div className="mt-8 flex flex-col items-center gap-4">
+              <VoiceVisualization isSpeaking={isSpeaking} />
+              <div className="flex gap-2 p-1 px-3 rounded-full bg-sky-500/5 border border-sky-500/10">
+                 {[...Array(9)].map((_, i) => (
+                   <motion.div 
+                     key={i}
+                     animate={{ 
+                       opacity: [0.1, 0.4, 0.1],
+                       height: isSpeaking ? [4, 12, 4] : 4
+                     }}
+                     transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
+                     className="w-0.5 h-4 bg-sky-400/40 rounded-full" 
+                   />
+                 ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center justify-end z-20">
+             {/* Interaction Area */}
+             <div className="w-full max-w-xl group relative">
+                <AnimatePresence mode="wait">
+                  {isVoiceMode ? (
+                    <motion.div 
+                      key="voice"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center justify-center p-4 bg-sky-500/5 border border-sky-500/20 rounded-xl backdrop-blur-xl"
+                    >
+                       <span className="text-xs font-mono tracking-widest text-sky-400 animate-pulse">
+                         {isListening ? "AWAITING_VOCAL_INPUT..." : "SYNAPTIC_ARRAY_READY"}
+                       </span>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="text"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex gap-2 p-2 bg-slate-900/80 border border-sky-500/20 rounded-xl backdrop-blur-3xl w-full"
+                    >
+                      <input 
+                        type="text"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                        placeholder="COMMAND_INPUT_SIR..."
+                        className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-sm text-sky-100 font-mono placeholder:text-sky-400/20"
+                      />
+                      <button 
+                        onClick={() => handleSend()}
+                        className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 p-2 rounded-lg transition-all"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+             </div>
+          </div>
+        </section>
+
+        <section className="h-[200px] border-t border-[var(--panel-border)] bg-slate-900/40 p-6 overflow-hidden flex flex-col">
+           <div className="flex items-center gap-2 mb-4 opacity-40">
+              <Volume2 className="w-3 h-3 text-sky-400" />
+              <span className="text-[8px] font-mono tracking-[0.4em] uppercase text-sky-400">Communication_Lattice</span>
+           </div>
+           
+           <div 
+             ref={scrollRef}
+             className="flex-1 overflow-y-auto space-y-4 pr-4 custom-scrollbar"
+           >
+             <AnimatePresence>
+               {messages.map((msg, i) => (
+                 <motion.div
+                   key={msg.timestamp + i}
+                   initial={{ opacity: 0, x: -10 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   className={cn(
+                     "flex flex-col gap-1",
+                     msg.role === 'user' ? "items-end" : "items-start"
+                   )}
+                 >
+                   <span className="text-[7px] font-black uppercase tracking-widest text-sky-500/40">
+                     {msg.role === 'user' ? 'AUTH_USER' : 'COGNITIVE_OS'}
+                   </span>
+                   <div className={cn(
+                     "max-w-[80%] p-3 rounded-lg text-xs leading-relaxed transition-all",
+                     msg.role === 'user' 
+                       ? "bg-sky-500/10 border border-sky-500/20 text-sky-100 italic" 
+                       : "bg-slate-800/80 border border-sky-500/5 text-sky-50"
+                   )}>
+                     {msg.text}
+                   </div>
+                 </motion.div>
+               ))}
+             </AnimatePresence>
+           </div>
+        </section>
+      </main>
+
+      {/* COLUMN 3: ENVIRONMENTAL TELEMETRY & CONTROLS */}
+      <aside className="hud-panel border-r-0 flex flex-col">
+        <div className="hud-header-label">
+          <span>OPTICAL_FEED_MATRIX</span>
+          <Globe className="w-3 h-3 opacity-50" />
+        </div>
+        <div className="h-48 relative overflow-hidden bg-black/40 border-b border-sky-500/10 grayscale hover:grayscale-0 transition-all duration-700">
+           <VisionModule 
+             onLog={onLog} 
+             onSecurityAction={handleSecurityAction} 
+             isOwnerVerified={isOwnerVerified} 
+           />
+        </div>
+
+        <div className="hud-header-label">
+          <span>ENVIRONMENTAL_DOMINANCE</span>
+          <Globe className="w-3 h-3 opacity-50" />
+        </div>
+        <div className="flex-1 p-4 overflow-y-auto space-y-4 custom-scrollbar">
+           <div className="tech-card space-y-3">
+              <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-sky-400/60">
+                 <div className="flex items-center gap-2 font-black italic"><MapPin className="w-3 h-3" /> Locus</div>
+                 <span className="text-white">{location?.timezone.split('/')[1] || 'Malibu'}</span>
+              </div>
+              <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-sky-400/60">
+                 <div className="flex items-center gap-2 font-black italic"><Cloud className="w-3 h-3" /> Atmosphere</div>
+                 <span className="text-white">{location?.weather || 'NOMINAL'}</span>
+              </div>
+           </div>
+
+           <div className="space-y-4">
+              <span className="text-[10px] font-mono tracking-widest text-sky-400/40 uppercase">Hardware_Node_Lattice</span>
+              <div className="space-y-1.5 font-mono">
+                 {devices.map((device) => (
+                   <button
+                     key={device.id}
+                     onClick={() => toggleDevice(device.id)}
+                     className={cn(
+                       "w-full p-2.5 rounded-lg border text-left transition-all group flex items-center justify-between",
+                       device.status === 'on' 
+                         ? "bg-sky-500/10 border-sky-400/30 text-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.05)]" 
+                         : "bg-white/[0.02] border-white/5 text-white/20"
+                     )}
+                   >
+                      <span className="text-[9px] font-bold tracking-tighter uppercase italic">{device.name}</span>
+                      <div className={cn(
+                        "w-1 h-1 rounded-full",
+                        device.status === 'on' ? "bg-sky-400 shadow-[0_0_8px_#38bdf8] animate-pulse" : "bg-white/10"
+                      )} />
+                   </button>
+                 ))}
+              </div>
+           </div>
+        </div>
+
+        <div className="p-4 border-t border-sky-500/10 bg-sky-500/5">
+           <button 
+             onClick={() => setIsSettingsOpen(true)}
+             className="w-full py-4 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-sky-500/20 transition-all flex items-center justify-center gap-3 shadow-[inset_0_0_20px_rgba(56,189,248,0.1)] group"
+           >
+             <Cpu className="w-4 h-4 group-hover:rotate-90 transition-transform duration-700" />
+             System_Calibrator
+           </button>
+        </div>
+      </aside>
+
+      {/* OVERLAY MODULES */}
+      <UISelector 
+        isOpen={isUISelectorOpen}
+        onClose={() => setIsUISelectorOpen(false)}
+        onSelect={handleThemeChange}
+        currentTheme={currentTheme}
       />
 
-      <VisionModule 
-        onLog={onLog} 
-        onSecurityAction={handleSecurityAction}
-        isOwnerVerified={isOwnerVerified}
-        isExpandedOverride={isVisionHUDOpen}
+      <AppLattice 
+        isOpen={isAppLatticeOpen}
+        onClose={() => setIsAppLatticeOpen(false)}
+        apps={localApps}
+        onLog={onLog}
       />
-      
-      <SystemDashboard 
+
+      <SettingsPanel 
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        personality={personality}
+        onUpdatePersonality={setPersonality}
+        availableVoices={availableVoices}
         telemetryLevel={telemetryLevel}
-        powerEfficiency={powerEfficiency}
+        setTelemetryLevel={setTelemetryLevel}
         satelliteStatus={satelliteStatus}
+        setSatelliteStatus={setSatelliteStatus}
+        powerEfficiency={powerEfficiency}
+        setPowerEfficiency={setPowerEfficiency}
         activeArmor={activeArmor}
+        setActiveArmor={setActiveArmor}
+        isSentinelActive={isSentinelActive}
+        setSentinelActive={setIsSentinelActive}
+      />
+
+      <LockOverlay 
+        isLocked={isLocked}
+        onUnlock={() => setIsLocked(false)}
+        onLog={onLog}
       />
 
       <AnalyticsPanel 
@@ -725,28 +1004,6 @@ export default function App() {
         onUpdatePreferences={setNewsPreferences}
       />
 
-      <SettingsPanel 
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        personality={personality}
-        onUpdatePersonality={setPersonality}
-        availableVoices={availableVoices}
-        telemetryLevel={telemetryLevel}
-        setTelemetryLevel={setTelemetryLevel}
-        satelliteStatus={satelliteStatus}
-        setSatelliteStatus={setSatelliteStatus}
-        powerEfficiency={powerEfficiency}
-        setPowerEfficiency={setPowerEfficiency}
-        activeArmor={activeArmor}
-        setActiveArmor={setActiveArmor}
-      />
-
-      <LockOverlay 
-        isLocked={isLocked}
-        onUnlock={() => setIsLocked(false)}
-        onLog={onLog}
-      />
-
       <HolographicDesignModule 
         isOpen={isHologramOpen}
         onClose={() => setIsHologramOpen(false)}
@@ -755,243 +1012,17 @@ export default function App() {
         onLog={onLog}
       />
 
-      {/* Static HUD Elements */}
-      <div className="absolute top-0 left-0 w-32 h-32 border-t-2 border-l-2 border-sky-500/20 m-4 pointer-events-none" />
-      <div className="absolute top-0 right-0 w-32 h-32 border-t-2 border-r-2 border-sky-500/20 m-4 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-32 h-32 border-b-2 border-l-2 border-sky-500/20 m-4 pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-32 h-32 border-b-2 border-r-2 border-sky-500/20 m-4 pointer-events-none" />
+      <ExtensionBridgeModule 
+        isOpen={isExtensionBridgeOpen}
+        onClose={() => setIsExtensionBridgeOpen(false)}
+      />
 
-      {/* Main Interface */}
-      <main className="relative z-10 w-full h-full flex flex-col items-center justify-between p-8">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
-          <JarvisOrb 
-            isListening={isListening} 
-            isActive={isVoiceMode} 
-            isProcessing={isProcessing}
-            onClick={toggleVoiceMode}
-          />
-          <div className="mt-8">
-            <VoiceVisualization isSpeaking={isSpeaking} />
-          </div>
-        </div>
-
-        {/* Top Indicators */}
-        <header className="w-full flex justify-between items-center mb-6 h-20">
-          <motion.div 
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center space-x-4"
-          >
-            <div className="w-12 h-12 rounded-full border-2 border-sky-400/50 flex items-center justify-center relative group">
-              <div className="w-4 h-4 bg-sky-400 rounded-full animate-ping absolute opacity-20"></div>
-              <div className="w-2 h-2 bg-sky-400 rounded-full animate-pulse shadow-[0_0_12px_#38bdf8]"></div>
-              <motion.div 
-                animate={{ rotate: 360 }}
-                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-0 border-t-2 border-sky-400 rounded-full opacity-40"
-              />
-            </div>
-            <div>
-              <h1 className="text-[10px] font-mono uppercase tracking-[0.4em] text-sky-400/60">Core_Identity_Protocol</h1>
-              <p className="text-2xl font-bold tracking-tighter glow-text text-sky-100 uppercase italic">J.A.R.V.I.S. OS_v4.0</p>
-            </div>
-          </motion.div>
-
-          <div className="text-center absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
-            <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-sky-100/40">Active_Tactical_Grid</p>
-            <motion.div 
-              animate={{ opacity: [0.4, 1, 0.4] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="px-4 py-1.5 bg-sky-500/10 border border-sky-500/30 rounded-lg text-sky-400 text-[11px] uppercase font-black tracking-widest shadow-[inset_0_0_10px_rgba(56,189,248,0.2)]"
-            >
-              House Party Protocol 
-            </motion.div>
-            <div className="flex gap-1">
-               {[...Array(5)].map((_, i) => (
-                 <motion.div 
-                   key={i}
-                   animate={{ backgroundColor: ["#38bdf8", "#0ea5e9", "#1e1b4b"] }}
-                   transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                   className="w-4 h-0.5" 
-                 />
-               ))}
-            </div>
-          </div>
-
-          <div className="text-right">
-            <p className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-60">User Authenticated</p>
-            <p className="text-lg font-semibold text-sky-100 tracking-tight">Tony Stark</p>
-            {location && (
-              <div className="mt-1 flex items-center justify-end gap-2 text-[8px] font-mono text-sky-400 opacity-60">
-                <Globe className="w-2.5 h-2.5" />
-                <span>{location.lat.toFixed(4)}, {location.long.toFixed(4)} | {location.timezone}</span>
-              </div>
-            )}
-          </div>
-        </header>
-
-        {/* Main Interaction Area */}
-        <div className="flex-1 w-full flex flex-col items-center justify-center gap-12 mt-20">
-          <div className="max-w-2xl w-full flex flex-col items-center gap-6">
-            <AnimatePresence mode="wait">
-              {isVoiceMode ? (
-                <motion.div 
-                  key="voice-status"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="flex flex-col items-center gap-3"
-                >
-                  <div className="flex items-center gap-4">
-                     <button 
-                        onClick={() => setIsVoiceMode(false)}
-                        className="px-4 py-2 glass text-[10px] font-bold text-sky-400 hover:text-sky-300 transition-colors uppercase tracking-widest"
-                     >
-                        Disable Voice Mode
-                     </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className={cn(
-                      "w-2 h-2 rounded-full",
-                      isListening ? "bg-sky-400 animate-pulse shadow-[0_0_8px_#38bdf8]" : "bg-slate-700"
-                    )} />
-                    <span className="text-xs font-mono uppercase tracking-[0.2em] text-sky-100/60">
-                      {isListening ? "Sensors_Active: Listening_Sir" : "Sensors_Idle: Standby"}
-                    </span>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div 
-                  key="chat-input"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="relative glass p-2 flex gap-2 rounded-2xl w-full"
-                >
-                  <input 
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder="AWAITING_INPUT_SIR..."
-                    className="flex-1 bg-transparent border-none outline-none px-4 py-2 text-sm placeholder:text-sky-400/30 text-sky-100 font-mono"
-                  />
-                  <button 
-                    onClick={() => setIsVoiceMode(true)}
-                    className="p-3 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 rounded-xl transition-all"
-                  >
-                    <Mic className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={() => handleSend()}
-                    disabled={isProcessing}
-                    className="bg-sky-500 text-slate-950 p-3 rounded-xl hover:bg-sky-400 transition-all shadow-[0_0_15px_rgba(56,189,248,0.5)] active:scale-95 disabled:opacity-50"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* HUD Elements */}
-        {!isLocked && <BrowserControlModule 
-          tasks={webTasks} 
-          onComplete={(id) => setWebTasks(prev => prev.filter(t => t.id !== id))}
-          onCancel={(id) => setWebTasks(prev => prev.filter(t => t.id !== id))}
-          onAddTask={addWebTask}
-        />}
-        
-        <ExtensionBridgeModule 
-          isOpen={isExtensionBridgeOpen}
-          onClose={() => setIsExtensionBridgeOpen(false)}
-        />
-        
-        {/* Dialogue Viewport */}
-        <div className="w-full max-w-2xl glass h-64 p-6 border-b-0 rounded-t-[2.5rem] flex flex-col translate-y-8 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-t from-sky-500/5 to-transparent pointer-events-none" />
-          <div className="flex items-center justify-between mb-4 border-b border-sky-400/10 pb-2 relative z-10">
-             <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-[0.3em]">Holographic_Comm_Link</span>
-             </div>
-             <Volume2 className="w-3.5 h-3.5 text-sky-400/40" />
-          </div>
-          <div 
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar relative z-10 [mask-image:linear-gradient(to_bottom,transparent_0%,black_20%)]"
-          >
-            <AnimatePresence mode="popLayout">
-              {messages.map((msg, i) => (
-                <motion.div
-                  key={msg.timestamp + i}
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className={cn(
-                    "relative p-4 rounded-2xl text-[11px] leading-relaxed group transition-all h-fit",
-                    msg.role === 'user' 
-                      ? "ml-16 bg-sky-500/5 border border-sky-500/20 text-sky-100/90 italic hologram-flicker" 
-                      : "mr-16 bg-slate-900/60 border border-sky-400/10 text-sky-50 shadow-[0_4px_20px_rgba(0,0,0,0.2)]"
-                  )}
-                >
-                   <div className={cn(
-                     "absolute -top-5 text-[8px] font-black uppercase tracking-widest",
-                     msg.role === 'user' ? "right-0 text-sky-400/40" : "left-0 text-sky-500"
-                   )}>
-                     {msg.role === 'user' ? 'USER_AUTH_SESSION_482' : 'JARVIS_COGNITIVE_CORE'}
-                   </div>
-                   {msg.text}
-                   <div className="absolute -bottom-4 right-0 text-[7px] font-mono opacity-20 uppercase">
-                     {new Date(msg.timestamp).toLocaleTimeString()}
-                   </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-            {isProcessing && (
-              <div className="flex gap-1 p-2">
-                {[0, 1, 2].map(i => (
-                  <motion.div 
-                    key={i}
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                    className="w-1.5 h-1.5 bg-sky-400 rounded-full"
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Floating Icons */}
-        <div className="absolute right-8 bottom-8 flex flex-col gap-4">
-          {[
-            { icon: <LayoutGrid className="w-5 h-5" />, label: 'Apps', onClick: () => {} },
-            { icon: <FileText className="w-5 h-5" />, label: 'Analyze', onClick: () => setIsAnalyticsOpen(true) },
-            { icon: <Languages className="w-5 h-5" />, label: 'Translate', onClick: () => setIsTranslationOpen(true) },
-            { icon: <Code className="w-5 h-5" />, label: 'Script', onClick: () => setIsScriptingOpen(true) },
-            { icon: <Shield className="w-5 h-5" />, label: 'Vault', onClick: () => setIsVaultOpen(true) },
-          ].map((item, idx) => (
-            <motion.div
-              key={item.label}
-              onClick={item.onClick}
-              whileHover={{ scale: 1.1, x: -5 }}
-              className="flex items-center gap-3 group cursor-pointer"
-            >
-              <span className="text-[10px] uppercase font-bold text-sky-500/0 group-hover:text-sky-500 transition-all tracking-widest">
-                {item.label}
-              </span>
-              <div className="p-3 glass border-sky-400/20 text-sky-400 rounded-xl hover:border-sky-400/40 transition-colors">
-                {item.icon}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </main>
-
-      {/* Decorative corners */}
-      <div className="fixed top-0 left-0 w-32 h-32 border-t-2 border-l-2 border-sky-500/10 pointer-events-none" />
-      <div className="fixed bottom-0 right-0 w-32 h-32 border-b-2 border-r-2 border-sky-500/10 pointer-events-none" />
+      {!isLocked && <BrowserControlModule 
+        tasks={webTasks} 
+        onComplete={(id) => setWebTasks(prev => prev.filter(t => t.id !== id))}
+        onCancel={(id) => setWebTasks(prev => prev.filter(t => t.id !== id))}
+        onAddTask={addWebTask}
+      />}
     </div>
   );
 }

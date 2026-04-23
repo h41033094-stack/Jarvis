@@ -43,22 +43,24 @@ Write-Host "Node.js Runtime: $(node -v) [SYNCHRONIZED]" -ForegroundColor Green
 Write-Host "Synchronizing dependency matrix for desktop integration..." -ForegroundColor Cyan
 npm install
 
-# 4. Configure Boot Launch (Optional Shortcut)
-$WshShell = New-Object -ComObject WScript.Shell
-$ShortcutPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\Jarvis.lnk"
-if (-not (Test-Path $ShortcutPath)) {
-    Write-Host "Configuring autonomous initialization on system boot..." -ForegroundColor Cyan
-    $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-    $Shortcut.TargetPath = "$(Get-Command npm).Path"
-    $Shortcut.Arguments = "run electron:dev"
-    $Shortcut.WorkingDirectory = Get-Location
-    $Shortcut.IconLocation = "shell32.dll, 45"
-    $Shortcut.Save()
-}
+# 4. Global System Integration (Boot Launch & App Sync)
+Write-Host "Configuring autonomous initialization and software lattice sync..." -ForegroundColor Cyan
+
+# A. Configure Boot Launch via Registry (Highest Level)
+$RegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+$AppName = "JARVIS_Core"
+$AppCommand = "powershell.exe -WindowStyle Hidden -Command ""cd '$(Get-Location)'; npm run electron:dev"""
+
+Set-ItemProperty -Path $RegPath -Name $AppName -Value $AppCommand
+Write-Host "Bootstrap protocol established in System Registry [BOOT_LAUNCH_ACTIVE]" -ForegroundColor Green
+
+# B. Explicit Queue for Software Lattice Sync
+Write-Host "Queuing first-run Application Lattice synchronization..." -ForegroundColor Green
+# (This is handled by the Electron Bridge upon first UI mount)
 
 # 5. Initiate J.A.R.V.I.S. Core
 Write-Host "--------------------------------------------------------" -ForegroundColor Cyan
-Write-Host "DESKTOP SHELL INITIATED. STANDING BY FOR SYSTEM-WIDE UPLINK..." -ForegroundColor Cyan
+Write-Host "SYSTEM INTEGRATION COMPLETE. INITIATING NEURAL UPLINK..." -ForegroundColor Cyan
 Write-Host "--------------------------------------------------------" -ForegroundColor Cyan
 
 # Launch the desktop app
